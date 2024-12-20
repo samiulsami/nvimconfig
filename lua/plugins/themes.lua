@@ -16,6 +16,9 @@ local set_default_colors = function()
 
 	vim.api.nvim_set_hl(0, "WinBar", { bold = true })
 	vim.api.nvim_set_hl(0, "WinBarNC", { bold = true })
+
+	vim.api.nvim_set_hl(0, "CursorLine", { bold = true, bg = "#1a1a1a" })
+	vim.api.nvim_set_hl(0, "CursorColumn", { bold = true, bg = "#1a1a1a" })
 end
 
 return {
@@ -29,13 +32,11 @@ return {
 			-- vim.g.everforest_background = "hard"
 			-- vim.g.everforest_better_performance = 1
 			-- vim.cmd.colorscheme("everforest")
-			-- local buffer_bg_color = nil
+			-- local buffer_bg_color = "#1a1b1e"
 			-- vim.api.nvim_set_hl(0, "Normal", { bg = buffer_bg_color })
 			-- vim.api.nvim_set_hl(0, "NormalNC", { bg = buffer_bg_color })
 			-- vim.api.nvim_set_hl(0, "EndOfBuffer", { bg = buffer_bg_color })
 			-- set_default_colors()
-			local buffer_bg_color = "#1a1b1e"
-			--local buffer_bg_color = "#1a1b1e"
 		end,
 	},
 	{
