@@ -8,7 +8,7 @@ return {
 		config = function()
 			require("noice").setup({
 				messages = {
-					enabled = false,
+					enabled = true,
 				},
 				presets = {
 					bottom_search = true, -- use a classic bottom cmdline for search
