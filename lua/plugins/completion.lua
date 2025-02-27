@@ -97,7 +97,7 @@ return {
 					-- Truncate the completion entry text if it's longer than the
 					-- max content width. We subtract 3 from the max content width
 					-- to account for the "..." that will be appended to it.
-					if #content > max_content_width then
+					if #content > max_content_width and content:match("^(diffget|diffget fugitive://)") == "" then
 						item.abbr = vim.fn.strcharpart(content, 0, max_content_width - 3) .. "..."
 					else
 						item.abbr = content .. (" "):rep(max_content_width - #content)
@@ -132,13 +132,14 @@ return {
 				mapping = cmp.mapping.preset.insert({
 					["<C-n>"] = cmp.mapping.select_next_item(),
 					["<C-p>"] = cmp.mapping.select_prev_item(),
-					["<C-b>"] = cmp.mapping.scroll_docs(-4),
-					["<C-f>"] = cmp.mapping.scroll_docs(4),
+					["<A-u>"] = cmp.mapping.scroll_docs(-4),
+					["<A-d>"] = cmp.mapping.scroll_docs(4),
 					["<C-y>"] = cmp.mapping.confirm({ select = true }),
-					["<C-L>"] = cmp.mapping(function()
-						if luasnip.locally_jumpable(-1) then
-							luasnip.jump(1)
-						end
+					["<C-l>"] = cmp.mapping(function()
+						luasnip.jump(1)
+					end, { "i", "s" }),
+					["<C-h>"] = cmp.mapping(function()
+						luasnip.jump(-1)
 					end, { "i", "s" }),
 				}),
 				sources = {
@@ -159,12 +160,12 @@ return {
 						function(...)
 							return require("cmp_buffer"):compare_locality(...)
 						end,
-						compare.exact,
+						compare.kind,
 						compare.score,
+						compare.exact,
 						compare.recently_used,
 						compare.locality,
 						compare.offset,
-						compare.kind,
 						compare.sort_text,
 						compare.length,
 						compare.order,
@@ -190,9 +191,9 @@ return {
 					{ name = "cmdline_history", keyword_length = 2, max_item_count = 5 },
 					{ name = "path", keyword_length = 3, max_item_count = 5 },
 					{ name = "cmdline", keyword_length = 2, max_item_count = 5 },
-					{ name = "lazydev" },
+					{ name = "lazydev", priority = 1001 },
 					{ name = "git", max_item_count = 5 },
-					{ name = "nvim_lsp", keyword_length = 2, max_item_count = 20 },
+					{ name = "nvim_lsp", priority = 1000, keyword_length = 2, max_item_count = 20 },
 					buffer_source,
 				}),
 				formatting = formatting,
