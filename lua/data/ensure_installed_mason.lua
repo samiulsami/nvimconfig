@@ -6,7 +6,7 @@ return {
 	"yamlfmt",
 	"clang-format",
 	"helm-ls",
-	-- "yaml-language-server",
+	"yaml-language-server",
 	"bash-language-server",
 	"json-lsp",
 	"fixjson",

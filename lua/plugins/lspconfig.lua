@@ -3,8 +3,7 @@ return {
 	{
 		"neovim/nvim-lspconfig",
 		dependencies = {
-			{ "williamboman/mason.nvim", config = true },
-			{ "williamboman/mason-lspconfig.nvim" },
+			{ "mason-org/mason.nvim", config = true },
 			{ "WhoIsSethDaniel/mason-tool-installer.nvim" },
 			{
 				"kevinhwang91/nvim-ufo",
@@ -12,13 +11,14 @@ return {
 					"kevinhwang91/promise-async",
 				},
 				config = function()
-					vim.keymap.set("n", "zR", require("ufo").openAllFolds)
-					vim.keymap.set("n", "zM", require("ufo").closeAllFolds)
+					local ufo = require("ufo")
+					vim.keymap.set("n", "zR", ufo.openAllFolds)
+					vim.keymap.set("n", "zM", ufo.closeAllFolds)
+					ufo.setup()
 				end,
 			},
 			{ "hrsh7th/cmp-nvim-lsp" },
 			{ "b0o/schemastore.nvim" },
-			{ "j-hui/fidget.nvim", opts = {} },
 		},
 		config = function()
 			local capabilities = vim.lsp.protocol.make_client_capabilities()
@@ -27,38 +27,19 @@ return {
 				dynamicRegistration = false,
 				lineFoldingOnly = true,
 			}
-			local servers = require("data.language_servers")
 
 			require("mason").setup()
+			require("mason-tool-installer").setup({ ensure_installed = require("data.ensure_installed_mason") })
 
-			local ensure_installed = vim.tbl_keys(servers or {})
-			vim.list_extend(ensure_installed, require("data.ensure_installed_mason"))
-			require("mason-tool-installer").setup({
-				ensure_installed = ensure_installed,
-				run_on_start = false,
-			})
-			---@module "mason-lspconfig"
-			---@type MasonLspconfigSettings
-			require("mason-lspconfig").setup({
-				automatic_enable = nil,
-				ensure_installed = nil,
-				handlers = {
-					function(server_name)
-						local server = servers[server_name] or {}
-						server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-						require("lspconfig")[server_name].setup(server)
-					end,
-				},
-			})
-
-			require("ufo").setup()
+			vim.lsp.enable({ "gopls", "lua_ls", "helm_ls", "yamlls", "jsonls", "bashls" })
+			vim.lsp.config("*", { capabilities = capabilities })
 
 			vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { desc = "LSP [R]e[n]ame" })
 			vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "LSP [C]ode [A]ction" })
 			vim.keymap.set(
 				"n",
 				"<leader>RL",
-				":LspRestart<CR>",
+				":LspRestart",
 				{ noremap = true, silent = true, desc = "[R]efresh [L]sp" }
 			)
 
