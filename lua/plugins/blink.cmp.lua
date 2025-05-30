@@ -2,7 +2,6 @@ return {
 	{
 		"saghen/blink.cmp",
 		dependencies = {
-			"rafamadriz/friendly-snippets",
 			"saghen/blink.compat",
 			{
 				"folke/lazydev.nvim",
@@ -32,28 +31,36 @@ return {
 			},
 
 			sources = {
-				default = { "lsp", "path", "snippets", "buffer", "go_deep", "lazydev" },
+				default = { "lsp", "path", "buffer", "go_deep", "lazydev", "omni" },
 				providers = {
-					snippets = {
-						name = "snippets",
-						module = "blink.cmp.sources.snippets",
-						max_items = 5,
-						score_offset = 1,
+					omni = {
+						name = "omni",
+						module = "blink.cmp.sources.complete_func",
+						enabled = function()
+							return vim.bo.omnifunc ~= "v:lua.vim.lsp.omnifunc"
+						end,
+						---@type blink.cmp.CompleteFuncOpts
+						opts = {
+							complete_func = function()
+								return vim.bo.omnifunc
+							end,
+						},
 						min_keyword_length = 0,
+						max_items = 5,
 					},
 					buffer = {
 						name = "buffer",
 						module = "blink.cmp.sources.buffer",
 						max_items = 5,
 						score_offset = 10,
-						min_keyword_length = 1,
+						min_keyword_length = 2,
 					},
 					lsp = {
 						name = "lsp",
 						module = "blink.cmp.sources.lsp",
 						max_items = 10,
 						score_offset = 1000,
-						min_keyword_length = 1,
+						min_keyword_length = 0,
 					},
 					go_deep = {
 						name = "go_deep",
@@ -65,7 +72,7 @@ return {
 							db_size_limit_bytes = 100 * 1024 * 1024,
 						},
 						max_items = 5,
-						min_keyword_length = 1,
+						min_keyword_length = 3,
 						score_offset = -10000,
 					},
 					cmdline = {
