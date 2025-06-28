@@ -133,6 +133,7 @@ return {
 				win = {
 					input = {
 						keys = {
+							["<ESC>"] = { "close", mode = { "i", "n" } },
 							["<C-y>"] = { "confirm", mode = { "i", "n" } },
 							["<a-d>"] = { "preview_scroll_down", mode = { "i", "n" } },
 							["<a-u>"] = { "preview_scroll_up", mode = { "i", "n" } },
