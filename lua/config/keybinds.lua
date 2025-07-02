@@ -1,5 +1,3 @@
--- Unbind some redundant keybinds to prevent prevent [G]oto [R]ereferences delay
--- These are already bound using snacks.picker
 vim.api.nvim_del_keymap("n", "grr") -- Unbind LSP [G]oto [R]eferences
 vim.api.nvim_del_keymap("n", "gri") -- UNbind LSP [G]oto [I]implementation
 vim.api.nvim_del_keymap("n", "gra") -- Unbind LSP Code Actions
@@ -21,6 +19,8 @@ vim.keymap.set("n", "<ESC>", function()
 	vim.cmd("nohlsearch")
 	return "<ESC>"
 end, { expr = true, desc = "Remove Search Highlights" })
+
+vim.keymap.set("n", "s", "/", { silent = true, desc = "Search [/]" })
 
 vim.keymap.set(
 	"n",
