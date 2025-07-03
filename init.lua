@@ -8,5 +8,6 @@ require("config.formatting")
 require("config.keybinds")
 require("config.profiling")
 require("config.lazy")
-require("utils.fFtT_highlights")
 require("utils.unique_lines")
+
+require("utils.fFtT_highlights"):setup({})
