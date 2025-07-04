@@ -19,11 +19,11 @@
 ---@field char string
 
 ---@class ffTt_highlights
----@field private pending_motions integer
 ---@field private in_motion boolean
 ---@field private charmap table<string, string>
+---@field private map_fFtT_motions fun(self, motion: string, opts: ffTt_highlights.opts): nil
+---@field private map_next_prev_motions fun(self, motion: string, opts: ffTt_highlights.opts): nil
 ---@field private disabled_file_or_buftype fun(self, opts: ffTt_highlights.opts): boolean
----@field private rev_map table<string, string>
 ---@field private fTfT_ns number
 ---@field private validate_opts fun(self, opts: ffTt_highlights.opts): nil
 ---@field private redraw fun(): nil
@@ -37,16 +37,15 @@
 ---@field private setup_highlight_reset_trigger fun(self, modes: table<string>, opts: ffTt_highlights.opts): nil
 ---@field private last_state last_state | nil
 ---@field private replay_last fun(self, opts: ffTt_highlights.opts, rev: boolean): nil
+---@field private move_cursor_to_char fun(self, opts: ffTt_highlights.opts, line: string, motion: string, char: string, row: number, col: number, reverse: boolean): integer | nil
 ---@field public clear_fFtT_hl fun(self): nil clears backdrop and highlights
 ---@field public setup fun(self, opts?: ffTt_highlights.opts): nil
 local fFtT_hl = {
-	pending_motions = 0,
 	in_motion = false,
 	charmap = {
 		["<space>"] = " ",
 		["<lt>"] = "<",
 	},
-	rev_map = {},
 	backdrop_highlight = "fFtTBackDropHighlight",
 	match_highlight = "fFtTMatchHighlight",
 	candidate_pending_char = "",
@@ -58,7 +57,7 @@ local default_opts = {
 	F = "F",
 	t = "t",
 	T = "T",
-	next = ";", --- buggy
+	next = ";",
 	prev = ",",
 	dot = ".",
 	esc = "<Esc>",
@@ -66,7 +65,7 @@ local default_opts = {
 	disabled_buftypes = {},
 	backdrop_strategy = "minimal",
 	modes = { "n", "v", "o" },
-	smart_motions = false, --- doesn't work with macros
+	smart_motions = false,
 }
 
 ---@param opts? ffTt_highlights.opts
@@ -75,29 +74,19 @@ function fFtT_hl:setup(opts)
 	opts = vim.tbl_deep_extend("force", default_opts, opts)
 	self:validate_opts(opts)
 
-	self.rev_map[opts.f] = "f"
-	self.rev_map[opts.F] = "F"
-	self.rev_map[opts.t] = "t"
-	self.rev_map[opts.T] = "T"
-	self.rev_map[opts.next] = ";"
-	self.rev_map[opts.prev] = ","
-	self.rev_map[opts.dot] = "."
-
 	self:setup_highlights()
 	self:setup_highlight_reset_trigger(opts.modes, opts)
 	for _, motion in ipairs({ opts.f, opts.F, opts.t, opts.T }) do
 		self:map_fFtT_motions(motion, opts)
 	end
-
-	vim.keymap.set("n", opts.next, ";", { noremap = false })
-	vim.keymap.set("n", opts.prev, ",", { noremap = false })
-	vim.keymap.set("n", opts.dot, ".", { noremap = false })
+	for _, motion in ipairs({ opts.next, opts.prev }) do
+		self:map_next_prev_motions(motion, opts)
+	end
 
 	local fFtT_hl_clear_group = vim.api.nvim_create_augroup("fFtTHLClearGroup", { clear = true })
 	vim.api.nvim_create_autocmd("InsertEnter", {
 		group = fFtT_hl_clear_group,
 		callback = function()
-			self.pending_motions = 0
 			self.in_motion = false
 			self:clear_fFtT_hl()
 			self.redraw()
@@ -114,6 +103,54 @@ function fFtT_hl:validate_opts(opts)
 	end
 end
 
+---@param opts ffTt_highlights.opts
+---@param line string
+---@param motion string
+---@param char string
+---@param row integer
+---@param col integer
+---@param reverse boolean
+---@return integer | nil
+function fFtT_hl:move_cursor_to_char(opts, line, motion, char, row, col, reverse)
+	local match_pos = nil
+	local from, to = col + 1, #line - 1
+	if reverse then
+		from, to = 0, col - 1
+	end
+
+	if motion == opts.t or motion == opts.T then
+		if reverse then
+			to = to - 1
+		else
+			from = from + 1
+		end
+	end
+
+	for i = from, to do
+		if line:sub(i + 1, i + 1) == char then
+			match_pos = i
+			if not reverse then
+				break
+			end
+		end
+	end
+
+	if match_pos and (motion == opts.T or motion == opts.t) then
+		if reverse then
+			match_pos = match_pos + 1
+		else
+			match_pos = match_pos - 1
+		end
+	end
+
+	if match_pos and match_pos >= 0 and match_pos < #line then
+		vim.api.nvim_win_set_cursor(0, { row + 1, match_pos })
+		return match_pos
+	end
+
+	return nil
+end
+
 function fFtT_hl:setup_highlights()
 	self.fFtT_ns = vim.api.nvim_create_namespace("highlightFfTtMotion")
 	local incsearch_highlight = vim.api.nvim_get_hl(0, { name = "IncSearch" })
@@ -125,39 +162,31 @@ end
 ---@param modes table<string>
 ---@param opts ffTt_highlights.opts
 function fFtT_hl:setup_highlight_reset_trigger(modes, opts)
-	vim.on_key(function(char)
+	vim.on_key(function(_, typed_key)
 		if self:disabled_file_or_buftype(opts) then
 			return
 		end
-		char = vim.fn.keytrans(char)
+
+		local char = vim.fn.keytrans(typed_key)
 		if char == opts.esc then
-			self.pending_motions = 0
 			self.in_motion = false
+			self.last_state = nil
 			self:clear_fFtT_hl()
 			return
 		end
 
-		char = self.charmap[char:lower()] or char
-		if self.pending_motions > 0 then
-			self.pending_motions = self.pending_motions - 1
-			self.candidate_pending_char = char
+		if self.in_motion and vim.tbl_contains({ opts.f, opts.F, opts.t, opts.T, opts.next, opts.prev }, char) then
 			return
 		end
+
+		char = self.charmap[char:lower()] or char
+		self.candidate_pending_char = char
 
 		local mode = vim.api.nvim_get_mode().mode
 		if not vim.tbl_contains(modes, mode) then
 			return
 		end
 
-		if char == opts.dot or char == opts.prev or char == opts.next then
-			if char == opts.dot then
-				self.pending_motions = 3
-			end
-			self:replay_last(opts, char == opts.prev)
-			return
-		end
-
-		self.pending_motions = 0
 		self.in_motion = false
 		self:clear_fFtT_hl()
 	end, vim.api.nvim_create_namespace("highlightFfTtMotionKeyWatcher"))
@@ -170,21 +199,36 @@ function fFtT_hl:map_fFtT_motions(motion, opts)
 		if self:disabled_file_or_buftype(opts) then
 			return
 		end
-		if opts.smart_motions and self.in_motion then
-			if motion == opts.f or motion == opts.t then
-				return ";"
-			else
-				return ","
+
+		if opts.smart_motions and self.in_motion and self.last_state then
+			local bufnr = vim.api.nvim_get_current_buf()
+			local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+			row = row - 1
+			local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
+			if not line then
+				return
 			end
-		end
-		if vim.fn.reg_executing() ~= "" then
-			return self.rev_map[motion]
+
+			local reverse
+			if motion == opts.f or motion == opts.t then
+				reverse = false
+			elseif motion == opts.F or motion == opts.T then
+				reverse = true
+			end
+
+			self:replay_last(opts, reverse)
+			self:move_cursor_to_char(opts, line, motion, self.last_state.char, row, col, reverse)
+			self.last_state = {
+				char = self.last_state.char,
+				motion = motion,
+			}
+			self.in_motion = true
+			return
 		end
 
 		self:clear_fFtT_hl()
 		self.redraw()
 
-		self.pending_motions = 1
 		local bufnr = vim.api.nvim_get_current_buf()
 		local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 		row = row - 1
@@ -193,11 +237,13 @@ function fFtT_hl:map_fFtT_motions(motion, opts)
 			return
 		end
 
-		local from, to
+		local from, to, reverse
+		reverse = false
 		if motion == opts.f or motion == opts.t then
 			from, to = col + 1, #line - 1
 		elseif motion == opts.F or motion == opts.T then
 			from, to = 0, col - 1
+			reverse = true
 		end
 
 		if opts.backdrop_strategy ~= "none" then
@@ -206,8 +252,15 @@ function fFtT_hl:map_fFtT_motions(motion, opts)
 		end
 
 		local char = self:get_char(opts)
-		if not char then
+		if not char or char == opts.esc then
 			return
+		end
+
+		if motion == opts.T then
+			to = to - 1
+		end
+		if motion == opts.t then
+			from = from + 1
 		end
 
 		if opts.backdrop_strategy == "minimal" then
@@ -222,14 +275,38 @@ function fFtT_hl:map_fFtT_motions(motion, opts)
 
 		self.redraw()
 
-		self.pending_motions = self.pending_motions + 2
 		self.last_state = {
 			motion = motion,
 			char = char,
 		}
 		self.in_motion = true
-		return self.rev_map[motion] .. char
-	end, { expr = true, noremap = true })
+		self:move_cursor_to_char(opts, line, motion, char, row, col, reverse)
+	end, { expr = false, noremap = true })
+end
+
+function fFtT_hl:map_next_prev_motions(motion, opts)
+	vim.keymap.set(opts.modes, motion, function()
+		if not self.last_state or self:disabled_file_or_buftype(opts) then
+			return
+		end
+		local bufnr = vim.api.nvim_get_current_buf()
+		local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+		row = row - 1
+		local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
+		if not line then
+			return
+		end
+
+		local last_motion = self.last_state.motion
+		local reverse = (last_motion == opts.F or last_motion == opts.T)
+		if motion == opts.prev then
+			reverse = not reverse
+		end
+
+		self:replay_last(opts, reverse)
+		self:move_cursor_to_char(opts, line, last_motion, self.last_state.char, row, col, reverse)
+		self.in_motion = true
+	end, { expr = false, noremap = true })
 end
 
 ---@param opts ffTt_highlights.opts
@@ -254,24 +331,19 @@ function fFtT_hl:replay_last(opts, rev)
 		return
 	end
 
-	local motion = last_state.motion
+	local from, to
 	if rev then
-		if motion == opts.f then
-			motion = opts.F
-		elseif motion == opts.F then
-			motion = opts.f
-		elseif motion == opts.t then
-			motion = opts.T
-		elseif motion == opts.T then
-			motion = opts.t
-		end
+		from, to = 0, col - 1
+	else
+		from, to = col + 1, #line - 1
 	end
 
-	local from, to
-	if motion == opts.f or motion == opts.t then
-		from, to = col + 1, #line - 1
-	elseif motion == opts.F or motion == opts.T then
-		from, to = 0, col - 1
+	if last_state.motion == opts.t or last_state.motion == opts.T then
+		if rev then
+			to = to - 1
+		else
+			from = from + 1
+		end
 	end
 
 	if opts.backdrop_strategy ~= "none" then
@@ -291,7 +363,6 @@ function fFtT_hl:replay_last(opts, rev)
 		self:clear_fFtT_hl()
 	end
 	self.redraw()
-	self.in_motion = true
 end
 
 ---@param bufnr integer
@@ -382,7 +453,6 @@ end
 function fFtT_hl:clear_fFtT_hl()
 	local bufnr = vim.api.nvim_get_current_buf()
 	vim.api.nvim_buf_clear_namespace(bufnr, self.fFtT_ns, 0, -1)
-	self.in_motion = false
 end
 
 fFtT_hl.redraw = function()
