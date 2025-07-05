@@ -11,5 +11,6 @@ require("config.lazy")
 require("utils.unique_lines")
 
 require("utils.fFtT_highlights"):setup({
-	smart_motions = false,
+	smart_motions = true,
+	case_sensitivity = "smart",
 })
