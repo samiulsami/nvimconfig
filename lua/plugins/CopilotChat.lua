@@ -30,7 +30,7 @@ return {
 						remember_as_sticky = true,
 					},
 				},
-				model = "gpt-4.1",
+				model = "gpt-5-mini",
 				temperature = 0.1,
 				window = {
 					layout = "float",

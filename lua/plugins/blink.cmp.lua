@@ -4,14 +4,6 @@ return {
 		dependencies = {
 			"rafamadriz/friendly-snippets",
 			"saghen/blink.compat",
-			{
-				"folke/lazydev.nvim",
-				ft = "lua",
-				opts = { library = { { path = "luvit-meta/library", words = { "vim%.uv" } } } },
-				dependencies = {
-					{ "Bilal2453/luvit-meta", lazy = true },
-				},
-			},
 			"dmitmel/cmp-cmdline-history",
 			{
 				"samiulsami/cmp-go-deep",
@@ -36,7 +28,7 @@ return {
 			},
 
 			sources = {
-				default = { "lsp", "path", "buffer", "go_deep", "go_pkgs", "snippets", "lazydev"},
+				default = { "lsp", "path", "buffer", "go_deep", "go_pkgs", "snippets"},
 				providers = {
 					snippets = {
 						name = "snippets",
@@ -112,13 +104,6 @@ return {
 							return items
 						end,
 					},
-					lazydev = {
-						name = "LazyDev",
-						module = "lazydev.integrations.blink",
-						score_offset = 100,
-						max_items = 9999,
-						min_keyword_length = 0,
-					},
 				},
 			},
 
@@ -131,7 +116,6 @@ return {
 					if type == ":" or type == "@" then
 						return {
 							"path",
-							"lazydev",
 							"cmdline",
 							"cmdline_buffer",
 							"cmdline_history",
