@@ -1,11 +1,10 @@
 return {
-	"samiulsami/dart.nvim",
-	branch = "persistence",
+	"iofq/dart.nvim",
 	dependencies = { "echasnovski/mini.icons" },
 	config = function()
 		local dart = require("dart")
 		local marklist = { "q", "w", "e", "r" }
-		local buflist = {} -- { "a", "s", "d", "f" }
+		local buflist = { "a" }
 
 		vim.api.nvim_create_autocmd("VimLeavePre", {
 			once = true,
@@ -36,7 +35,7 @@ return {
 				end,
 				order = function()
 					local order = {}
-					for i, key in ipairs(vim.list_extend(vim.deepcopy(Dart.config.marklist), Dart.config.buflist)) do
+					for i, key in ipairs(vim.list_extend(vim.deepcopy(dart.config.marklist), dart.config.buflist)) do
 						order[key] = i
 					end
 					return order
@@ -49,22 +48,45 @@ return {
 				pick = "<A-t>",
 				next = "",
 				prev = "",
+				unmark_all = "",
 			},
 		})
 
 		vim.keymap.set("n", "<leader>a", function()
-			require("dart").mark(vim.api.nvim_get_current_buf())
-		end, { noremap = true, silent = true, desc = "Mark current buffer" })
+			local current_buf = vim.api.nvim_get_current_buf()
+			local filename = vim.api.nvim_buf_get_name(current_buf)
+			local cur_state = dart.state_from_filename(filename)
+			if not cur_state or vim.tbl_contains(buflist, cur_state.mark) then
+				dart.mark(current_buf)
+			else
+				local state = dart.state_from_filename(filename)
+				if state then
+					dart.unmark({ type = "marks", marks = { state.mark } })
+				else
+					vim.notify("File " .. filename .. " exists in dart but has no mark!", vim.log.levels.WARN)
+				end
+			end
+		end, { noremap = true, silent = true, desc = "Toggle mark on current buffer" })
+
+		vim.keymap.set("n", "<leader>A", function()
+			vim.ui.input({ prompt = "[dart] Remove ALL Marks? (y/n) " }, function(input)
+				if input and input:lower() == "y" then
+					dart.unmark({ type = "all" })
+				else
+					vim.notify("Aborted removing all marks", vim.log.levels.INFO)
+				end
+			end)
+		end, { noremap = true, silent = true, desc = "Remove ALL Marks" })
 
 		for _, key in ipairs(marklist) do
 			vim.keymap.set("n", "<A-" .. key .. ">", function()
-				require("dart").jump(key)
+				dart.jump(key)
 			end, { noremap = true, silent = true, desc = "Jump to buffer" })
 		end
 
 		for _, key in ipairs(buflist) do
 			vim.keymap.set("n", "<A-" .. key .. ">", function()
-				require("dart").jump(key)
+				dart.jump(key)
 			end, { noremap = true, silent = true, desc = "Jump to buffer" })
 		end
 

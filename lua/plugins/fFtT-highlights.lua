@@ -10,15 +10,16 @@ return {
 			-- case_sensitivity = "smart_case",
 			match_highlight = {
 				priority = 2000,
+                                persist_matches = 10,
 			},
 			backdrop = {
 				style = {
-					show_in_motion = "current_line",
-					on_key_press = "current_line",
+					show_in_motion = "none",
+					on_key_press = "none",
 				},
 			},
 			jumpable_chars = {
-				show_instantly_jumpable = "always",
+				show_instantly_jumpable = "on_key_press",
 				show_all_jumpable_in_words = "on_key_press",
 				min_gap = 0,
 			},
